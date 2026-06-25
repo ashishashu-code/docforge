@@ -13,11 +13,12 @@ services:
         value: production
 
   # Frontend Static Site
-  - type: static
+  - type: web
     name: docforge-frontend
+    runtime: static
     plan: free
     buildCommand: cd frontend && npm install && npm run build
-    publishDir: frontend/dist
+    staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_BASE
         fromService:
