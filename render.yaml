@@ -21,7 +21,4 @@ services:
     staticPublishPath: frontend/dist
     envVars:
       - key: VITE_API_BASE
-        fromService:
-          type: web
-          name: docforge-backend
-          property: url
+        sync: false
