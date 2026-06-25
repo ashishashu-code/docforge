@@ -240,9 +240,9 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
       )}
 
       {/* Split view container */}
-      <div className="flex-1 flex flex-row bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded overflow-hidden h-full">
+      <div className="flex-1 flex flex-col lg:flex-row bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded overflow-y-auto lg:overflow-hidden h-full">
         {/* Left templates list column */}
-        <div className="w-72 shrink-0 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-950/20">
+        <div className="w-full lg:w-72 shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-950/20 h-44 lg:h-full">
           {/* Header orange button */}
           <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-2">
             <button 
@@ -293,9 +293,9 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
         </div>
 
         {/* Right workspace details area */}
-        <div className="flex-1 flex flex-row overflow-hidden h-full">
+        <div className="flex-1 flex flex-col lg:flex-row overflow-visible lg:overflow-hidden h-auto lg:h-full">
           {selectedTemplate ? (
-            <div className="flex-1 flex flex-col overflow-y-auto p-5 space-y-6">
+            <div className="flex-1 flex flex-col overflow-visible lg:overflow-y-auto p-5 space-y-6">
               {/* Top details card */}
               <div className="border border-slate-300 dark:border-slate-800 rounded p-4 space-y-4 bg-white dark:bg-slate-900 relative">
                 {/* Title and Top buttons */}
@@ -471,7 +471,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
 
           {/* PDF Live Preview Column */}
           {selectedTemplate && (
-            <div className="w-96 shrink-0 border-l border-slate-200 dark:border-slate-800 flex flex-col h-full bg-slate-50/30">
+            <div className="w-full lg:w-96 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 flex flex-col h-[500px] lg:h-full bg-slate-50/30">
               <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
                   <FileText className="w-3.5 h-3.5 text-slate-700 dark:text-slate-350" /> Live Document Preview

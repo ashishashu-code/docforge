@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Sparkles, FileCode, Laptop, Settings, BadgeAlert, CheckCircle2, ChevronRight, FileSpreadsheet, Sun, Moon, Search } from 'lucide-react';
+import { Sparkles, FileCode, Laptop, Settings, BadgeAlert, CheckCircle2, ChevronRight, FileSpreadsheet, Sun, Moon, Search, Menu, X } from 'lucide-react';
 import DocumentGenerator from './components/DocumentGenerator';
 import TemplateManager from './components/TemplateManager';
 import ProductLibrary from './components/ProductLibrary';
@@ -10,6 +10,7 @@ const API_BASE = import.meta.env.VITE_API_BASE ? `${import.meta.env.VITE_API_BAS
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('generate');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [assetStatus, setAssetStatus] = useState({ letterhead: null, stamp: null });
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('theme') || 'light';
@@ -104,19 +105,39 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen flex flex-row bg-[var(--nm-bg)] dark:bg-[var(--nm-bg)] text-[var(--nm-text-primary)] transition-colors duration-200 w-full overflow-hidden">
+    <div className="min-h-screen flex flex-row bg-[var(--nm-bg)] dark:bg-[var(--nm-bg)] text-[var(--nm-text-primary)] transition-colors duration-200 w-full overflow-hidden relative">
+      {/* Sidebar Mobile Backdrop */}
+      {isSidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-black/60 z-30 md:hidden" 
+          onClick={() => setIsSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar Navigation - Dark Vyapar Sidebar */}
-      <aside className="w-64 bg-[#111c24] dark:bg-slate-950 flex flex-col justify-between p-4 shrink-0 h-screen sticky top-0 z-20">
+      <aside className={`w-64 bg-[#111c24] dark:bg-slate-950 flex flex-col justify-between p-4 shrink-0 h-screen fixed md:sticky top-0 left-0 z-40 transition-transform duration-200 ${
+        isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'
+      }`}>
         <div className="space-y-6">
           {/* Circular Brand Header */}
-          <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
-            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold text-xs shadow-inner shrink-0">
-              DF
+          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center text-white font-bold text-xs shadow-inner shrink-0">
+                DF
+              </div>
+              <div className="flex items-center gap-1.5 cursor-pointer">
+                <span className="font-bold text-xs text-white tracking-tight">DocForge Compliance</span>
+                <ChevronRight className="w-3.5 h-3.5 text-slate-400 rotate-90" />
+              </div>
             </div>
-            <div className="flex items-center gap-1.5 cursor-pointer">
-              <span className="font-bold text-xs text-white tracking-tight">DocForge Compliance</span>
-              <ChevronRight className="w-3.5 h-3.5 text-slate-400 rotate-90" />
-            </div>
+            
+            {/* Close button for mobile */}
+            <button 
+              onClick={() => setIsSidebarOpen(false)}
+              className="p-1 rounded hover:bg-slate-800 text-slate-400 hover:text-white md:hidden cursor-pointer"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
 
           {/* Navigation links */}
@@ -127,7 +148,10 @@ export default function App() {
               return (
                 <button
                   key={item.id}
-                  onClick={() => setActiveTab(item.id)}
+                  onClick={() => {
+                    setActiveTab(item.id);
+                    setIsSidebarOpen(false);
+                  }}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded text-xs font-semibold transition-all duration-150 group cursor-pointer ${
                     isActive
                       ? 'bg-slate-800 text-white font-bold'
@@ -192,115 +216,130 @@ export default function App() {
 
       {/* Main content Area with White Top Bar */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
-        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-6 shrink-0 sticky top-0 z-10 shadow-sm">
-          {/* Left search */}
-          <div className="relative">
-            <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 rounded border border-slate-400 dark:border-slate-700 w-80">
-              <Search className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-              <input 
-                type="text" 
-                placeholder="Search templates or products..." 
-                className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-slate-200 placeholder-slate-600 dark:placeholder-slate-400" 
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    const filteredT = searchQuery.trim() ? allTemplates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())) : [];
-                    const filteredP = searchQuery.trim() ? allProducts.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())) : [];
-                    if (filteredT.length > 0) {
-                      setExternalTemplateId(filteredT[0].id);
-                      setActiveTab('generate');
-                      setSearchQuery('');
-                      setIsSearchFocused(false);
-                    } else if (filteredP.length > 0) {
-                      setExternalProductId(filteredP[0].id);
-                      setActiveTab('products');
-                      setSearchQuery('');
-                      setIsSearchFocused(false);
+        <header className="h-16 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-4 md:px-6 shrink-0 sticky top-0 z-10 shadow-sm">
+          <div className="flex items-center gap-3">
+            {/* Hamburger button for mobile */}
+            <button 
+              onClick={() => setIsSidebarOpen(true)}
+              className="p-1.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 md:hidden cursor-pointer active:scale-95 shrink-0"
+              title="Open sidebar"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Left search */}
+            <div className="relative hidden md:block">
+              <div className="flex items-center gap-2 bg-slate-50 dark:bg-slate-900 px-3 py-1.5 rounded border border-slate-400 dark:border-slate-700 w-80">
+                <Search className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                <input 
+                  type="text" 
+                  placeholder="Search templates or products..." 
+                  className="bg-transparent border-none outline-none text-xs w-full text-slate-900 dark:text-slate-200 placeholder-slate-600 dark:placeholder-slate-400" 
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const filteredT = searchQuery.trim() ? allTemplates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase())) : [];
+                      const filteredP = searchQuery.trim() ? allProducts.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase())) : [];
+                      if (filteredT.length > 0) {
+                        setExternalTemplateId(filteredT[0].id);
+                        setActiveTab('generate');
+                        setSearchQuery('');
+                        setIsSearchFocused(false);
+                      } else if (filteredP.length > 0) {
+                        setExternalProductId(filteredP[0].id);
+                        setActiveTab('products');
+                        setSearchQuery('');
+                        setIsSearchFocused(false);
+                      }
                     }
-                  }
-                }}
-              />
+                  }}
+                />
+              </div>
+              {isSearchFocused && searchQuery.trim() && (() => {
+                const filteredT = allTemplates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
+                const filteredP = allProducts.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
+                if (filteredT.length === 0 && filteredP.length === 0) return null;
+                return (
+                  <div className="absolute top-11 left-0 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded shadow-lg max-h-64 overflow-y-auto z-50 text-xs py-1">
+                    {filteredT.length > 0 && (
+                      <div>
+                        <div className="px-3 py-1 bg-slate-50 dark:bg-slate-850 font-bold text-slate-400 uppercase tracking-wider text-[9px] border-b border-slate-100 dark:border-slate-800">
+                          Templates
+                        </div>
+                        {filteredT.map(tpl => (
+                          <div 
+                            key={tpl.id}
+                            className="flex items-center justify-between px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                            onClick={() => {
+                              setExternalTemplateId(tpl.id);
+                              setActiveTab('generate');
+                              setSearchQuery('');
+                              setIsSearchFocused(false);
+                            }}
+                          >
+                            <span className="font-medium text-slate-700 dark:text-slate-200 truncate pr-2">{tpl.name}</span>
+                            <span className="text-[9px] text-emerald-700 dark:text-emerald-450 bg-emerald-50 dark:bg-emerald-950/20 px-1.5 py-0.5 rounded shrink-0">Use</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {filteredP.length > 0 && (
+                      <div className="border-t border-slate-100 dark:border-slate-800 mt-1">
+                        <div className="px-3 py-1 bg-slate-50 dark:bg-slate-850 font-bold text-slate-400 uppercase tracking-wider text-[9px] border-b border-slate-100 dark:border-slate-800">
+                          Product Specifications
+                        </div>
+                        {filteredP.map(prod => (
+                          <div 
+                            key={prod.id}
+                            className="flex items-center justify-between px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
+                            onClick={() => {
+                              setExternalProductId(prod.id);
+                              setActiveTab('products');
+                              setSearchQuery('');
+                              setIsSearchFocused(false);
+                            }}
+                          >
+                            <span className="font-medium text-slate-700 pr-2 dark:text-slate-200 truncate">{prod.name}</span>
+                            <span className="text-[9px] text-amber-700 dark:text-amber-450 bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded shrink-0">Edit</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
-            {isSearchFocused && searchQuery.trim() && (() => {
-              const filteredT = allTemplates.filter(t => t.name.toLowerCase().includes(searchQuery.toLowerCase()));
-              const filteredP = allProducts.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-              if (filteredT.length === 0 && filteredP.length === 0) return null;
-              return (
-                <div className="absolute top-11 left-0 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded shadow-lg max-h-64 overflow-y-auto z-50 text-xs py-1">
-                  {filteredT.length > 0 && (
-                    <div>
-                      <div className="px-3 py-1 bg-slate-50 dark:bg-slate-850 font-bold text-slate-400 uppercase tracking-wider text-[9px] border-b border-slate-100 dark:border-slate-800">
-                        Templates
-                      </div>
-                      {filteredT.map(tpl => (
-                        <div 
-                          key={tpl.id}
-                          className="flex items-center justify-between px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                          onClick={() => {
-                            setExternalTemplateId(tpl.id);
-                            setActiveTab('generate');
-                            setSearchQuery('');
-                            setIsSearchFocused(false);
-                          }}
-                        >
-                          <span className="font-medium text-slate-700 dark:text-slate-200 truncate pr-2">{tpl.name}</span>
-                          <span className="text-[9px] text-emerald-700 dark:text-emerald-450 bg-emerald-50 dark:bg-emerald-950/20 px-1.5 py-0.5 rounded shrink-0">Use</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {filteredP.length > 0 && (
-                    <div className="border-t border-slate-100 dark:border-slate-800 mt-1">
-                      <div className="px-3 py-1 bg-slate-50 dark:bg-slate-850 font-bold text-slate-400 uppercase tracking-wider text-[9px] border-b border-slate-100 dark:border-slate-800">
-                        Product Specifications
-                      </div>
-                      {filteredP.map(prod => (
-                        <div 
-                          key={prod.id}
-                          className="flex items-center justify-between px-3 py-2 hover:bg-slate-100 dark:hover:bg-slate-800 cursor-pointer"
-                          onClick={() => {
-                            setExternalProductId(prod.id);
-                            setActiveTab('products');
-                            setSearchQuery('');
-                            setIsSearchFocused(false);
-                          }}
-                        >
-                          <span className="font-medium text-slate-700 pr-2 dark:text-slate-200 truncate">{prod.name}</span>
-                          <span className="text-[9px] text-amber-700 dark:text-amber-450 bg-amber-50 dark:bg-amber-950/20 px-1.5 py-0.5 rounded shrink-0">Edit</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })()}
           </div>
 
           {/* Right quick actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 md:gap-2">
             <button 
               onClick={() => setActiveTab('generate')} 
-              className="bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded text-[11px] font-bold cursor-pointer hover:bg-red-100 dark:bg-red-950/20 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/30 transition-all animate-pulse"
+              className="bg-red-50 text-red-700 border border-red-200 px-2.5 py-1.5 rounded text-[10px] md:text-[11px] font-bold cursor-pointer hover:bg-red-100 dark:bg-red-950/20 dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-900/30 transition-all animate-pulse shrink-0"
             >
-              + Add Document
+              <span className="hidden sm:inline">+ Add Document</span>
+              <span className="sm:hidden">+ Doc</span>
             </button>
             <button 
               onClick={() => setActiveTab('templates')} 
-              className="bg-slate-100 text-slate-700 border border-slate-200 px-3 py-1.5 rounded text-[11px] font-bold cursor-pointer hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700 transition-all"
+              className="bg-slate-100 text-slate-700 border border-slate-200 px-2.5 py-1.5 rounded text-[10px] md:text-[11px] font-bold cursor-pointer hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-700 dark:hover:bg-slate-700 transition-all shrink-0"
             >
-              + Add Template
+              <span className="hidden sm:inline">+ Add Template</span>
+              <span className="sm:hidden">+ Tpl</span>
             </button>
             <button 
               onClick={() => setActiveTab('products')} 
-              className="bg-slate-800 text-white px-3 py-1.5 rounded text-[11px] font-bold cursor-pointer hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 transition-all"
+              className="bg-slate-800 text-white px-2.5 py-1.5 rounded text-[10px] md:text-[11px] font-bold cursor-pointer hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600 transition-all shrink-0"
             >
-              + Add Product
+              <span className="hidden sm:inline">+ Add Product</span>
+              <span className="sm:hidden">+ Prod</span>
             </button>
           </div>
         </header>
+
 
         {/* Main Viewport */}
         <main className="flex-1 p-6 overflow-y-auto w-full">

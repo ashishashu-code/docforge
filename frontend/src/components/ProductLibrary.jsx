@@ -133,9 +133,9 @@ export default function ProductLibrary({ externalProductId, clearExternalProduct
       )}
 
       {/* Split view container */}
-      <div className="flex-1 flex flex-row bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded overflow-hidden h-full">
+      <div className="flex-1 flex flex-col lg:flex-row bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded overflow-y-auto lg:overflow-hidden h-full">
         {/* Left products list column */}
-        <div className="w-72 shrink-0 border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-950/20">
+        <div className="w-full lg:w-72 shrink-0 border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 flex flex-col bg-slate-50/50 dark:bg-slate-950/20 h-44 lg:h-full">
           {/* Header Add button */}
           <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-2">
             <button 
@@ -182,7 +182,7 @@ export default function ProductLibrary({ externalProductId, clearExternalProduct
         </div>
 
         {/* Right workspace specs details editor */}
-        <div className="flex-1 flex flex-col overflow-y-auto p-5">
+        <div className="flex-1 flex flex-col overflow-visible lg:overflow-y-auto p-5 h-auto lg:h-full">
           {editingProduct ? (
             <div className="space-y-6">
               {/* Top details card */}
