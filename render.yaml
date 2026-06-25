@@ -1,0 +1,26 @@
+services:
+  # Backend Node Web Service
+  - type: web
+    name: docforge-backend
+    env: node
+    plan: free
+    buildCommand: cd backend && npm install && npx puppeteer browsers install chrome
+    startCommand: cd backend && npm start
+    envVars:
+      - key: PORT
+        value: 5000
+      - key: NODE_ENV
+        value: production
+
+  # Frontend Static Site
+  - type: static
+    name: docforge-frontend
+    plan: free
+    buildCommand: cd frontend && npm install && npm run build
+    publishDir: frontend/dist
+    envVars:
+      - key: VITE_API_BASE
+        fromService:
+          type: web
+          name: docforge-backend
+          property: url

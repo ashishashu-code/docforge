@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Plus, Trash, Edit, Save, X, PlusCircle, Laptop, Search } from 'lucide-react';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_BASE ? `${import.meta.env.VITE_API_BASE}/api` : 'http://localhost:5000/api';
 
 export default function ProductLibrary({ externalProductId, clearExternalProduct }) {
   const [products, setProducts] = useState([]);

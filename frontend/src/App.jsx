@@ -6,7 +6,7 @@ import TemplateManager from './components/TemplateManager';
 import ProductLibrary from './components/ProductLibrary';
 import LetterheadStampManager from './components/LetterheadStampManager';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_BASE ? `${import.meta.env.VITE_API_BASE}/api` : 'http://localhost:5000/api';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('generate');

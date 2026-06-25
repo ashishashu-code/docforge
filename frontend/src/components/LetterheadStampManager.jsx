@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Upload, FileText, CheckCircle, AlertCircle, Image as ImageIcon } from 'lucide-react';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_BASE ? `${import.meta.env.VITE_API_BASE}/api` : 'http://localhost:5000/api';
 
 export default function LetterheadStampManager() {
   const [assets, setAssets] = useState({ letterhead: null, stamp: null });
@@ -203,7 +203,7 @@ export default function LetterheadStampManager() {
               <div className="p-4 bg-slate-50/50 dark:bg-slate-900/10 border border-slate-300 dark:border-slate-700 rounded mb-6 flex items-center gap-4">
                 <div className="w-16 h-16 bg-white dark:bg-slate-950 rounded flex items-center justify-center overflow-hidden border border-slate-300 dark:border-slate-700">
                   <img 
-                    src={assets.localStampData || `http://localhost:5000/assets/stamps/${assets.stamp}?t=${Date.now()}`} 
+                    src={assets.localStampData || `${API_BASE.replace('/api', '')}/assets/stamps/${assets.stamp}?t=${Date.now()}`} 
                     alt="Stamp Preview" 
                     className="max-w-full max-h-full object-contain p-1"
                     onError={(e) => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Upload, FileCode, CheckCircle, AlertCircle, Trash, Edit, Plus, Save, X } from 'lucide-react';
 
-const API_BASE = 'http://localhost:5000/api';
+const API_BASE = import.meta.env.VITE_API_BASE ? `${import.meta.env.VITE_API_BASE}/api` : 'http://localhost:5000/api';
 
 export default function TemplateManager({ externalTemplateId, clearExternalTemplate }) {
   const [templates, setTemplates] = useState([]);
