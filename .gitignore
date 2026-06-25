@@ -1,0 +1,9 @@
+node_modules/
+dist/
+dev/
+.DS_Store
+.env
+backend/assets/letterheads/*
+backend/assets/stamps/*
+backend/templates/*
+backend/products.json

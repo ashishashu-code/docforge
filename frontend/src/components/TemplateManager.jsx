@@ -1,0 +1,509 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { Upload, FileCode, CheckCircle, AlertCircle, Trash, Edit, Plus, Save, X } from 'lucide-react';
+
+const API_BASE = 'http://localhost:5000/api';
+
+export default function TemplateManager({ externalTemplateId, clearExternalTemplate }) {
+  const [templates, setTemplates] = useState([]);
+  const [editingTemplate, setEditingTemplate] = useState(null); // Template object currently being created/edited
+  const [parsingLoading, setParsingLoading] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState({ type: '', message: '' });
+
+  const getLocalTemplates = () => {
+    try {
+      const local = localStorage.getItem('docforge_templates');
+      return local ? JSON.parse(local) : [];
+    } catch (e) {
+      console.error("Failed to parse local templates", e);
+      return [];
+    }
+  };
+
+  const saveLocalTemplates = (tpls) => {
+    try {
+      localStorage.setItem('docforge_templates', JSON.stringify(tpls));
+    } catch (e) {
+      console.error("Failed to save local templates", e);
+    }
+  };
+
+  const fetchTemplates = async () => {
+    setLoading(true);
+    let serverTemplates = [];
+    try {
+      const res = await axios.get(`${API_BASE}/templates`);
+      serverTemplates = res.data;
+    } catch (err) {
+      console.error(err);
+      setStatus({ type: 'error', message: 'Failed to load templates from server. Loading local storage.' });
+      setTimeout(() => setStatus({ type: '', message: '' }), 4000);
+    }
+
+    const localTemplates = getLocalTemplates();
+    const merged = [...serverTemplates];
+    localTemplates.forEach(localTpl => {
+      const index = merged.findIndex(t => t.id === localTpl.id || (t.name && t.name === localTpl.name));
+      if (index >= 0) {
+        merged[index] = {
+          ...merged[index],
+          ...localTpl,
+          originalFile: localTpl.originalFile || merged[index].originalFile
+        };
+      } else {
+        merged.push(localTpl);
+      }
+    });
+
+    setTemplates(merged);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchTemplates();
+  }, []);
+
+  useEffect(() => {
+    if (externalTemplateId && templates.length > 0) {
+      const tpl = templates.find(t => t.id === externalTemplateId);
+      if (tpl) {
+        handleStartEdit(tpl);
+      }
+      if (clearExternalTemplate) clearExternalTemplate();
+    }
+  }, [externalTemplateId, templates]);
+
+  const handleUploadTemplate = async (file) => {
+    if (!file) return;
+
+    // Read the file as base64 data URL to store in browser storage
+    let base64File = null;
+    try {
+      base64File = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+    } catch (e) {
+      console.error("Failed to read file for local storage", e);
+    }
+
+    const formData = new FormData();
+    formData.append('templateFile', file);
+
+    setParsingLoading(true);
+    setStatus({ type: '', message: '' });
+
+    try {
+      const res = await axios.post(`${API_BASE}/templates/parse-sample`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+      
+      // Open in editor
+      setEditingTemplate({
+        id: '',
+        name: res.data.name,
+        htmlContent: res.data.htmlContent,
+        placeholders: res.data.placeholders,
+        hasSpecificationsTable: res.data.hasSpecificationsTable,
+        marginSettings: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' },
+        useLetterhead: true,
+        originalFile: base64File ? { name: file.name, data: base64File } : null
+      });
+      
+      setStatus({ type: 'success', message: 'Sample document parsed successfully! You can now refine the template.' });
+    } catch (err) {
+      console.error(err);
+      setStatus({ type: 'error', message: err.response?.data?.error || 'Failed to parse template file.' });
+    } finally {
+      setParsingLoading(false);
+    }
+  };
+
+  const handleSaveTemplate = async () => {
+    if (!editingTemplate.name.trim()) {
+      alert('Template Name is required');
+      return;
+    }
+    if (!editingTemplate.htmlContent.trim()) {
+      alert('Template content is empty');
+      return;
+    }
+
+    const templateId = editingTemplate.id || `tpl_${Date.now()}`;
+    const templateToSave = {
+      ...editingTemplate,
+      id: templateId,
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      const res = await axios.post(`${API_BASE}/templates`, templateToSave);
+      if (res.data && res.data.template) {
+        templateToSave.id = res.data.template.id;
+      }
+      setStatus({ type: 'success', message: 'Template saved successfully!' });
+    } catch (err) {
+      console.error(err);
+      setStatus({ type: 'error', message: 'Failed to save template on server. Saved to browser storage.' });
+      setTimeout(() => setStatus({ type: '', message: '' }), 4000);
+    }
+
+    // Always update/save in localStorage
+    const local = getLocalTemplates();
+    const updated = local.some(t => t.id === templateToSave.id || (templateToSave.name && t.name === templateToSave.name))
+      ? local.map(t => (t.id === templateToSave.id || (templateToSave.name && t.name === templateToSave.name)) ? templateToSave : t)
+      : [...local, templateToSave];
+    saveLocalTemplates(updated);
+
+    setEditingTemplate(null);
+    fetchTemplates();
+    setTimeout(() => setStatus({ type: '', message: '' }), 3000);
+  };
+
+  const handleDeleteTemplate = async (id) => {
+    if (window.confirm('Are you sure you want to delete this template?')) {
+      try {
+        await axios.delete(`${API_BASE}/templates/${id}`);
+      } catch (err) {
+        console.error(err);
+      }
+
+      // Delete from localStorage too
+      const local = getLocalTemplates();
+      const filtered = local.filter(t => t.id !== id);
+      saveLocalTemplates(filtered);
+
+      setStatus({ type: 'success', message: 'Template deleted successfully!' });
+      fetchTemplates();
+      setTimeout(() => setStatus({ type: '', message: '' }), 3000);
+    }
+  };
+
+  const handleStartManualCreate = () => {
+    setEditingTemplate({
+      id: '',
+      name: '',
+      htmlContent: `<h2>TECHNICAL COMPLIANCE SHEET</h2>\n<p>Bidder Name: {{company_name}}</p>\n<p>Bid Date: {{bid_date}}</p>\n<p>Bid Reference: {{bid_number}}</p>\n\n{{specifications_table}}\n\n<p>Sincerely,</p>\n<p><strong>{{authorized_signatory}}</strong></p>\n<p>{{company_stamp}}</p>`,
+      placeholders: ['company_name', 'bid_date', 'bid_number', 'authorized_signatory'],
+      hasSpecificationsTable: true,
+      marginSettings: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' },
+      useLetterhead: true,
+      originalFile: null
+    });
+  };
+
+  const handleStartEdit = (template) => {
+    setEditingTemplate(JSON.parse(JSON.stringify(template)));
+  };
+
+  // Re-detect placeholders in HTML when text is edited
+  const handleHtmlChange = (value) => {
+    // Basic regex placeholder extractor
+    const regex = /\{\{([a-zA-Z0-9_-]+)\}\}/g;
+    const detected = new Set();
+    let match;
+    while ((match = regex.exec(value)) !== null) {
+      const tag = match[1].trim();
+      if (tag !== 'specifications_table' && tag !== 'company_stamp') {
+        detected.add(tag);
+      }
+    }
+    
+    setEditingTemplate(prev => ({
+      ...prev,
+      htmlContent: value,
+      placeholders: Array.from(detected),
+      hasSpecificationsTable: value.includes('{{specifications_table}}')
+    }));
+  };
+
+  return (
+    <div className="space-y-6 text-[var(--nm-text-primary)]">
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-[var(--nm-text-primary)]">Document Templates</h1>
+          <p className="mt-2 text-[var(--nm-text-muted)] text-sm">
+            Create compliance document templates. Upload a DOCX/PDF master file, map placeholders, edit layout HTML, and configure page formatting.
+          </p>
+        </div>
+        {!editingTemplate && (
+          <div className="flex items-center gap-3">
+            <button onClick={handleStartManualCreate} className="glass-btn-secondary">
+              <Plus className="w-4 h-4" /> Create Blank Template
+            </button>
+            
+            <label className={`glass-btn-primary cursor-pointer ${parsingLoading ? 'opacity-50 pointer-events-none' : ''}`}>
+              <Upload className={`w-4 h-4 ${parsingLoading ? 'animate-spin' : ''}`} />
+              {parsingLoading ? 'Parsing...' : 'Upload Sample Doc'}
+              <input
+                type="file"
+                className="hidden"
+                accept=".docx,.pdf"
+                onChange={(e) => handleUploadTemplate(e.target.files[0])}
+              />
+            </label>
+          </div>
+        )}
+      </div>
+
+      {status.message && (
+        <div className={`p-4 flex items-center gap-3 border ${
+          status.type === 'success' 
+            ? 'bg-emerald-50 border-emerald-200 text-emerald-800 dark:bg-emerald-950/20 dark:border-emerald-800/50 dark:text-emerald-400' 
+            : 'bg-red-50 border-red-200 text-red-800 dark:bg-red-950/20 dark:border-red-900/50 dark:text-red-400'
+        } font-medium`}>
+          {status.type === 'success' ? <CheckCircle className="w-5 h-5 flex-shrink-0 text-emerald-500" /> : <AlertCircle className="w-5 h-5 flex-shrink-0 text-red-500" />}
+          <span>{status.message}</span>
+        </div>
+      )}
+
+      {editingTemplate ? (
+        /* Template Editor view */
+        <div className="glass-panel space-y-6">
+          <div className="flex items-center justify-between border-b border-[var(--nm-border)] pb-4">
+            <h2 className="text-xl font-semibold text-[var(--nm-text-primary)]">
+              {editingTemplate.id ? 'Edit Master Template' : 'Configure New Template'}
+            </h2>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setEditingTemplate(null)} className="glass-btn-secondary py-1.5 px-4 text-sm">
+                <X className="w-4 h-4" /> Cancel
+              </button>
+              <button onClick={handleSaveTemplate} className="glass-btn-primary py-1.5 px-5 text-sm">
+                <Save className="w-4 h-4" /> Save Template
+              </button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Editor Main Controls */}
+            <div className="lg:col-span-2 space-y-4">
+              <div>
+                <label className="block text-sm font-semibold text-[var(--nm-text-primary)] mb-1.5">Template Name</label>
+                <input
+                  type="text"
+                  placeholder="e.g., technical_compliance_macbook"
+                  className="w-full glass-input"
+                  value={editingTemplate.name}
+                  onChange={(e) => setEditingTemplate(prev => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+
+              <div>
+                <div className="flex justify-between items-center mb-1.5">
+                  <label className="block text-sm font-semibold text-[var(--nm-text-primary)]">HTML Template Markup</label>
+                  <span className="text-xs text-[var(--nm-text-muted)] font-mono">HTML structure</span>
+                </div>
+                <textarea
+                  rows={15}
+                  placeholder="<h2>Heading</h2><p>Content with {{placeholder_name}}</p>"
+                  className="w-full glass-input font-mono text-xs leading-relaxed focus:border-[var(--nm-brand)]"
+                  value={editingTemplate.htmlContent}
+                  onChange={(e) => handleHtmlChange(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Template Settings & Placelolder Guide Side Panel */}
+            <div className="space-y-6">
+              {/* Margins & Settings */}
+              <div className="p-5 bg-slate-50/50 dark:bg-slate-900/30 border border-[var(--nm-border)] rounded space-y-4">
+                <h3 className="text-sm font-bold text-[var(--nm-text-primary)] uppercase tracking-wider">Template Settings</h3>
+                
+                <div className="flex items-center justify-between">
+                  <label className="text-sm text-[var(--nm-text-primary)] font-semibold">Use Company Letterhead</label>
+                  <input
+                    type="checkbox"
+                    className="w-4 h-4 accent-[var(--nm-brand)] bg-[var(--nm-card)] border-[var(--nm-border)] rounded cursor-pointer"
+                    checked={editingTemplate.useLetterhead}
+                    onChange={(e) => setEditingTemplate(prev => ({ ...prev, useLetterhead: e.target.checked }))}
+                  />
+                </div>
+
+                <div className="space-y-2 pt-2 border-t border-[var(--nm-border)]">
+                  <span className="text-xs font-bold text-[var(--nm-text-primary)]">PDF Document Margins</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-[10px] text-[var(--nm-text-muted)] uppercase font-semibold">Top</label>
+                      <input
+                        type="text"
+                        className="w-full bg-[var(--nm-card)] border border-[var(--nm-border)] rounded px-3 py-1.5 text-xs text-[var(--nm-text-primary)] focus:outline-none focus:border-[var(--nm-brand)]"
+                        value={editingTemplate.marginSettings?.top || '20mm'}
+                        onChange={(e) => setEditingTemplate(prev => ({
+                          ...prev,
+                          marginSettings: { ...prev.marginSettings, top: e.target.value }
+                        }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[var(--nm-text-muted)] uppercase font-semibold">Bottom</label>
+                      <input
+                        type="text"
+                        className="w-full bg-[var(--nm-card)] border border-[var(--nm-border)] rounded px-3 py-1.5 text-xs text-[var(--nm-text-primary)] focus:outline-none focus:border-[var(--nm-brand)]"
+                        value={editingTemplate.marginSettings?.bottom || '20mm'}
+                        onChange={(e) => setEditingTemplate(prev => ({
+                          ...prev,
+                          marginSettings: { ...prev.marginSettings, bottom: e.target.value }
+                        }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[var(--nm-text-muted)] uppercase font-semibold">Left</label>
+                      <input
+                        type="text"
+                        className="w-full bg-[var(--nm-card)] border border-[var(--nm-border)] rounded px-3 py-1.5 text-xs text-[var(--nm-text-primary)] focus:outline-none focus:border-[var(--nm-brand)]"
+                        value={editingTemplate.marginSettings?.left || '20mm'}
+                        onChange={(e) => setEditingTemplate(prev => ({
+                          ...prev,
+                          marginSettings: { ...prev.marginSettings, left: e.target.value }
+                        }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[10px] text-[var(--nm-text-muted)] uppercase font-semibold">Right</label>
+                      <input
+                        type="text"
+                        className="w-full bg-[var(--nm-card)] border border-[var(--nm-border)] rounded px-3 py-1.5 text-xs text-[var(--nm-text-primary)] focus:outline-none focus:border-[var(--nm-brand)]"
+                        value={editingTemplate.marginSettings?.right || '20mm'}
+                        onChange={(e) => setEditingTemplate(prev => ({
+                          ...prev,
+                          marginSettings: { ...prev.marginSettings, right: e.target.value }
+                        }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Detected Placeholders Cheat Sheet */}
+              <div className="p-5 bg-slate-50/50 dark:bg-slate-900/30 border border-[var(--nm-border)] rounded space-y-3">
+                <h3 className="text-sm font-bold text-[var(--nm-text-primary)] uppercase tracking-wider">Detected Variables</h3>
+                
+                <div className="space-y-2 max-h-48 overflow-y-auto">
+                  {editingTemplate.placeholders.map(p => (
+                    <div key={p} className="flex justify-between items-center bg-[var(--nm-card)] px-3 py-1.5 rounded border border-[var(--nm-border)]">
+                      <span className="font-mono text-xs text-[var(--nm-text-primary)]">{"{{" + p + "}}"}</span>
+                      <span className="text-[10px] text-[var(--nm-brand)] bg-[var(--nm-brand-soft)] border border-[var(--nm-brand-border)] px-2 py-0.5 rounded font-semibold">Form Field</span>
+                    </div>
+                  ))}
+
+                  {editingTemplate.hasSpecificationsTable && (
+                    <div className="flex justify-between items-center bg-[var(--nm-card)] px-3 py-1.5 rounded border border-emerald-250 text-emerald-600 dark:text-emerald-450">
+                      <span className="font-mono text-xs font-semibold">{"{{specifications_table}}"}</span>
+                      <span className="text-[10px] text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded font-bold dark:bg-emerald-950/20 dark:border-emerald-800/50 dark:text-emerald-400">Dynamic Table</span>
+                    </div>
+                  )}
+
+                  {editingTemplate.htmlContent.includes('{{company_stamp}}') && (
+                    <div className="flex justify-between items-center bg-[var(--nm-card)] px-3 py-1.5 rounded border border-teal-250 text-teal-600 dark:text-teal-455">
+                      <span className="font-mono text-xs font-semibold">{"{{company_stamp}}"}</span>
+                      <span className="text-[10px] text-teal-600 bg-teal-50 border border-teal-200 px-2 py-0.5 rounded font-bold dark:bg-teal-950/20 dark:border-teal-800/50 dark:text-teal-400">Stamp Overlay</span>
+                    </div>
+                  )}
+
+                  {editingTemplate.placeholders.length === 0 && !editingTemplate.hasSpecificationsTable && (
+                    <p className="text-xs text-[var(--nm-text-muted)] italic">No variables detected yet. Add curly-bracket templates to define fields.</p>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-[var(--nm-border)] text-[10px] text-[var(--nm-text-muted)] space-y-1">
+                  <p>• Type <code className="text-[var(--nm-text-primary)]">{"{{variable_name}}"}</code> to insert a field.</p>
+                  <p>• Type <code className="text-emerald-500 font-semibold">{"{{specifications_table}}"}</code> to insert the full compliance specification grid.</p>
+                  <p>• Type <code className="text-teal-500 font-semibold">{"{{company_stamp}}"}</code> to control where the signature stamp is drawn.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* Grid List view */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {templates.map((tpl) => (
+            <div key={tpl.id} className="glass-panel hover-elevate flex flex-col justify-between group">
+              <div>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded bg-[var(--nm-brand-soft)] border border-[var(--nm-brand-border)] flex items-center justify-center text-[var(--nm-brand)] transition-transform">
+                    <FileCode className="w-5 h-5" />
+                  </div>
+                  <h3 className="text-lg font-bold text-[var(--nm-text-primary)] truncate max-w-[180px]">{tpl.name}</h3>
+                </div>
+
+                <div className="space-y-1.5 text-xs text-[var(--nm-text-muted)] mb-6">
+                  <div className="flex justify-between">
+                    <span>Input Parameters:</span>
+                    <span className="font-bold text-[var(--nm-text-primary)]">{tpl.placeholders.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Specifications Table:</span>
+                    <span className={`font-bold ${tpl.hasSpecificationsTable ? 'text-emerald-600' : 'text-[var(--nm-text-muted)]'}`}>
+                      {tpl.hasSpecificationsTable ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Use Letterhead:</span>
+                    <span className={`font-bold ${tpl.useLetterhead ? 'text-[var(--nm-brand)]' : 'text-[var(--nm-text-muted)]'}`}>
+                      {tpl.useLetterhead ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Source Doc:</span>
+                    <span className="font-bold text-[var(--nm-text-primary)] truncate max-w-[120px]" title={tpl.originalFile ? tpl.originalFile.name : 'Manual'}>
+                      {tpl.originalFile ? tpl.originalFile.name : 'Manual'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between border-t border-[var(--nm-border)] pt-4 mt-4">
+                <span className="text-[10px] text-[var(--nm-text-muted)] font-mono">
+                  {new Date(tpl.updatedAt).toLocaleDateString()}
+                </span>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => handleStartEdit(tpl)}
+                    className="text-[var(--nm-text-muted)] hover:text-[var(--nm-brand)] hover:bg-slate-100 dark:hover:bg-slate-800 p-2 rounded transition-all"
+                    title="Edit Template"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteTemplate(tpl.id)}
+                    className="text-[var(--nm-text-muted)] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 p-2 rounded transition-all"
+                    title="Delete Template"
+                  >
+                    <Trash className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+
+          {templates.length === 0 && !loading && (
+            <div className="col-span-full py-16 text-center glass-panel bg-slate-50/50 dark:bg-slate-900/10">
+              <Upload className="w-12 h-12 text-[var(--nm-text-muted)] opacity-25 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-[var(--nm-text-primary)]">No Templates Available</h3>
+              <p className="text-sm text-[var(--nm-text-muted)] mt-1 mb-6">Upload a master DOCX/PDF to auto-parse, or build a template from scratch.</p>
+              
+              <div className="flex justify-center gap-3">
+                <button onClick={handleStartManualCreate} className="glass-btn-secondary">
+                  Create Blank Template
+                </button>
+                <label className="glass-btn-primary cursor-pointer">
+                  <Upload className="w-4 h-4" /> Upload Sample Document
+                  <input
+                    type="file"
+                    className="hidden"
+                    accept=".docx,.pdf"
+                    onChange={(e) => handleUploadTemplate(e.target.files[0])}
+                  />
+                </label>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

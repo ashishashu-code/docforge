@@ -1,0 +1,11 @@
+{
+  "name": "doc-automation-root",
+  "version": "1.0.0",
+  "description": "Document Automation Platform Root Directory",
+  "scripts": {
+    "start": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
