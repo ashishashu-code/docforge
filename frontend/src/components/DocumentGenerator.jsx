@@ -287,6 +287,21 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
     }
   };
 
+  const handleDescriptionKeyDown = (e, idx, placeholderSelector) => {
+    if ((e.key === 'Tab' || e.key === 'Enter') && !e.shiftKey) {
+      if (idx === specifications.length - 1) {
+        e.preventDefault();
+        handleAddSpecRow();
+        setTimeout(() => {
+          const inputs = document.querySelectorAll(`input[placeholder="${placeholderSelector}"]`);
+          if (inputs.length > 0) {
+            inputs[inputs.length - 1].focus();
+          }
+        }, 50);
+      }
+    }
+  };
+
   const isQuotation = selectedTemplate && selectedTemplate.htmlContent && selectedTemplate.htmlContent.includes('{{quotation_table}}');
   const displayedPlaceholders = selectedTemplate ? selectedTemplate.placeholders.filter(p => p !== 'quotation_table' && p !== 'specifications_table' && p !== 'company_stamp') : [];
 
@@ -471,6 +486,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
                                 className="w-full bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-650 rounded px-2 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-400 focus:outline-none focus:border-slate-500"
                                 value={spec.description}
                                 onChange={(e) => handleSpecChange(idx, 'description', e.target.value)}
+                                onKeyDown={(e) => handleDescriptionKeyDown(e, idx, 'e.g. Processor')}
                               />
                             </td>
                             <td className="p-2">
@@ -548,6 +564,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
                                 className="w-full bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-650 rounded px-2 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-400 focus:outline-none focus:border-slate-500"
                                 value={item.description || ''}
                                 onChange={(e) => handleSpecChange(idx, 'description', e.target.value)}
+                                onKeyDown={(e) => handleDescriptionKeyDown(e, idx, 'e.g. Lenovo Laptop')}
                               />
                             </td>
                             <td className="p-2">
