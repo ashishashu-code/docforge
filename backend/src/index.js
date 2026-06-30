@@ -360,6 +360,7 @@ app.post('/api/generate', async (req, res) => {
     // 1. Replace Standard Placeholders
     if (formValues) {
       Object.keys(formValues).forEach(key => {
+        if (key === 'quotation_table' || key === 'specifications_table' || key === 'company_stamp') return;
         const val = formValues[key] || '';
         // Replace all occurrences of {{key}}
         const placeholderRegex = new RegExp(`\\{\\{\\s*${key}\\s*\\}\\}`, 'g');

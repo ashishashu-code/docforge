@@ -329,7 +329,7 @@ export default function TemplateManager({ externalTemplateId, clearExternalTempl
     let match;
     while ((match = regex.exec(value)) !== null) {
       const tag = match[1].trim();
-      if (tag !== 'specifications_table' && tag !== 'company_stamp') {
+      if (tag !== 'specifications_table' && tag !== 'company_stamp' && tag !== 'quotation_table') {
         detected.add(tag);
       }
     }

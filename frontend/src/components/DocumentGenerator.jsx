@@ -250,6 +250,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
   };
 
   const isQuotation = selectedTemplate && selectedTemplate.htmlContent && selectedTemplate.htmlContent.includes('{{quotation_table}}');
+  const displayedPlaceholders = selectedTemplate ? selectedTemplate.placeholders.filter(p => p !== 'quotation_table' && p !== 'specifications_table' && p !== 'company_stamp') : [];
 
   return (
     <div className="flex flex-col space-y-4 h-[calc(100vh-8rem)]">
@@ -302,7 +303,9 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
                   }`}
                 >
                   <div className="font-semibold truncate">{t.name}</div>
-                  <div className="text-[10px] text-slate-400 mt-1 font-mono">{t.placeholders.length} fields</div>
+                  <div className="text-[10px] text-slate-400 mt-1 font-mono">
+                    {t.placeholders.filter(p => p !== 'quotation_table' && p !== 'specifications_table' && p !== 'company_stamp').length} fields
+                  </div>
                 </button>
               );
             })}
@@ -352,11 +355,11 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
                 </div>
 
                 {/* Form fields grid */}
-                {selectedTemplate.placeholders.length > 0 ? (
+                {displayedPlaceholders.length > 0 ? (
                   <div>
                     <h3 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3">Document Placeholders</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {selectedTemplate.placeholders.map(p => (
+                      {displayedPlaceholders.map(p => (
                         <div key={p} className="flex flex-col space-y-1">
                           <label className="text-[10px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-tight">
                             {p.replace(/_/g, ' ')}
