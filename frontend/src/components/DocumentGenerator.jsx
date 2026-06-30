@@ -16,6 +16,11 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
   const [hasStamp, setHasStamp] = useState(true);
   const [useLetterhead, setUseLetterhead] = useState(false);
   
+  // Resizing states
+  const [previewWidth, setPreviewWidth] = useState(384);
+  const [isResizing, setIsResizing] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+  
   // Generation & Preview states
   const [generating, setGenerating] = useState(false);
   const [previewUrl, setPreviewUrl] = useState('');
@@ -82,6 +87,39 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
       if (clearExternalTemplate) clearExternalTemplate();
     }
   }, [externalTemplateId, templates]);
+
+  // Track responsiveness for resizer
+  useEffect(() => {
+    const handleResize = () => {
+      setIsDesktop(window.innerWidth >= 1024);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Track global dragging events for resizer
+  useEffect(() => {
+    if (!isResizing) return;
+
+    const handleMouseMove = (e) => {
+      const newWidth = window.innerWidth - e.clientX;
+      if (newWidth >= 250 && newWidth <= window.innerWidth * 0.6) {
+        setPreviewWidth(newWidth);
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing]);
 
   const handleSelectTemplate = (id, templatesList = templates) => {
     setSelectedTemplateId(id);
@@ -610,9 +648,26 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
             </div>
           )}
 
+          {/* Resize Handle */}
+          {selectedTemplate && (
+            <div
+              onMouseDown={(e) => {
+                e.preventDefault();
+                setIsResizing(true);
+              }}
+              className="hidden lg:block w-1 hover:w-1.5 bg-slate-200 hover:bg-slate-400 dark:bg-slate-800 dark:hover:bg-slate-600 cursor-col-resize transition-all shrink-0 select-none relative z-10"
+              style={{
+                backgroundColor: isResizing ? '#419b88' : undefined,
+              }}
+            />
+          )}
+
           {/* PDF Live Preview Column */}
           {selectedTemplate && (
-            <div className="w-full lg:w-96 shrink-0 border-t lg:border-t-0 lg:border-l border-slate-200 dark:border-slate-800 flex flex-col h-[500px] lg:h-full bg-slate-50/30">
+            <div 
+              className="w-full lg:w-auto shrink-0 border-t lg:border-t-0 flex flex-col h-[500px] lg:h-full bg-slate-50/30"
+              style={{ width: isDesktop ? `${previewWidth}px` : '100%' }}
+            >
               <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex justify-between items-center">
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1">
                   <FileText className="w-3.5 h-3.5 text-slate-700 dark:text-slate-350" /> Live Document Preview
@@ -628,6 +683,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
                   <iframe
                     src={`${previewUrl}#toolbar=0&navpanes=0`}
                     className="w-full h-full border-none"
+                    style={{ pointerEvents: isResizing ? 'none' : 'auto' }}
                     title="Live Preview"
                   />
                 ) : (
