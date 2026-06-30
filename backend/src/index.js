@@ -320,6 +320,7 @@ app.post('/api/generate', async (req, res) => {
     specifications, 
     outputFormat, 
     hasStamp,
+    useLetterhead,
     letterheadData,
     letterheadName,
     stampData,
@@ -527,7 +528,8 @@ app.post('/api/generate', async (req, res) => {
     // PDF Generation Mode (Puppeteer)
     // ----------------------------------------------------
     if (outputFormat === 'pdf') {
-      const isBackgroundLetterhead = template.useLetterhead && 
+      const actualUseLetterhead = useLetterhead !== undefined ? useLetterhead : template.useLetterhead;
+      const isBackgroundLetterhead = actualUseLetterhead && 
         (memoryLetterheadBuffer || (letterheadPath && fs.existsSync(letterheadPath)));
       
       // We use `@page` margins to offset content so it repeats correctly on every page
@@ -617,9 +619,10 @@ app.post('/api/generate', async (req, res) => {
     // DOCX Generation Mode (docx library)
     // ----------------------------------------------------
     if (outputFormat === 'docx') {
+      const actualUseLetterhead = useLetterhead !== undefined ? useLetterhead : template.useLetterhead;
       const conversionOptions = {
-        letterheadPath: template.useLetterhead ? letterheadPath : null,
-        letterheadBuffer: template.useLetterhead ? memoryLetterheadBuffer : null,
+        letterheadPath: actualUseLetterhead ? letterheadPath : null,
+        letterheadBuffer: actualUseLetterhead ? memoryLetterheadBuffer : null,
         letterheadExt: memoryLetterheadExt || letterheadExt,
         stampPath: stampPath,
         stampBuffer: memoryStampBuffer,

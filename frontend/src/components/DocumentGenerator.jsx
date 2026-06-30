@@ -14,6 +14,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
   const [formValues, setFormValues] = useState({});
   const [specifications, setSpecifications] = useState([]);
   const [hasStamp, setHasStamp] = useState(true);
+  const [useLetterhead, setUseLetterhead] = useState(false);
   
   // Generation & Preview states
   const [generating, setGenerating] = useState(false);
@@ -88,6 +89,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
     setSelectedTemplate(template);
     
     if (template) {
+      setUseLetterhead(template.useLetterhead !== undefined ? template.useLetterhead : false);
       // Initialize form values for each placeholder
       const initialValues = {};
       template.placeholders.forEach(p => {
@@ -115,6 +117,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
       setSelectedTemplate(null);
       setFormValues({});
       setSpecifications([]);
+      setUseLetterhead(false);
       setPreviewUrl('');
     }
   };
@@ -181,6 +184,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
         specifications,
         outputFormat: 'pdf',
         hasStamp,
+        useLetterhead,
         letterheadData,
         letterheadName,
         stampData,
@@ -216,6 +220,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
         specifications,
         outputFormat: format,
         hasStamp,
+        useLetterhead,
         letterheadData,
         letterheadName,
         stampData,
@@ -578,6 +583,20 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
                   className="w-4 h-4 accent-slate-800 dark:accent-slate-400 cursor-pointer"
                   checked={hasStamp}
                   onChange={(e) => setHasStamp(e.target.checked)}
+                />
+              </div>
+
+              {/* Company Letterhead Options */}
+              <div className="border-t border-slate-100 dark:border-slate-850 pt-4 flex items-center justify-between">
+                <div>
+                  <h4 className="text-xs font-bold text-slate-700 dark:text-slate-350 uppercase">Use Company Letterhead</h4>
+                  <p className="text-[10px] text-slate-400">Applies background letterhead automatically</p>
+                </div>
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 accent-slate-800 dark:accent-slate-400 cursor-pointer"
+                  checked={useLetterhead}
+                  onChange={(e) => setUseLetterhead(e.target.checked)}
                 />
               </div>
             </div>
