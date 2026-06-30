@@ -10,6 +10,128 @@ export default function TemplateManager({ externalTemplateId, clearExternalTempl
   const [parsingLoading, setParsingLoading] = useState(false);
   const [loading, setLoading] = useState(false);
   const [status, setStatus] = useState({ type: '', message: '' });
+  const [editorMode, setEditorMode] = useState('easy'); // 'easy' or 'advanced'
+  const [easyFields, setEasyFields] = useState({
+    companyName: '',
+    companyAddress: '',
+    companyGst: '',
+    companyPhone: '',
+    companyEmail: '',
+    terms: []
+  });
+
+  // Extract values from HTML for easy editor
+  const extractEasyFields = (html) => {
+    if (!html) return { companyName: '', companyAddress: '', companyGst: '', companyPhone: '', companyEmail: '', terms: [] };
+    
+    // 1. Company Name & Address
+    let companyName = '';
+    let companyAddress = '';
+    const nameAddrRegex = /<h2[^>]*>([\s\S]*?)<\/h2>\s*<p[^>]*>([\s\S]*?)<\/p>/i;
+    const nameAddrMatch = html.match(nameAddrRegex);
+    if (nameAddrMatch) {
+      companyName = nameAddrMatch[1].trim();
+      companyAddress = nameAddrMatch[2].trim();
+    } else {
+      // Try h3
+      const h3Regex = /<h3[^>]*>([\s\S]*?)<\/h3>/i;
+      const h3Match = html.match(h3Regex);
+      if (h3Match) companyName = h3Match[1].trim();
+    }
+
+    // 2. GST No
+    let companyGst = '';
+    const gstRegex = /GST\s*No:\s*([^<&<\n]*)/i;
+    const gstMatch = html.match(gstRegex);
+    if (gstMatch) companyGst = gstMatch[1].trim();
+
+    // 3. Tel / Phone
+    let companyPhone = '';
+    const phoneRegex = /Tel:\s*([^<&<\n]*)/i;
+    const phoneMatch = html.match(phoneRegex);
+    if (phoneMatch) companyPhone = phoneMatch[1].trim();
+
+    // 4. Email
+    let companyEmail = '';
+    const emailRegex = /email:\s*([^<&<\n]*)/i;
+    const emailMatch = html.match(emailRegex);
+    if (emailMatch) companyEmail = emailMatch[1].trim();
+
+    // 5. Terms & Conditions
+    let terms = [];
+    const olRegex = /<ol[^>]*>([\s\S]*?)<\/ol>/i;
+    const olMatch = html.match(olRegex);
+    if (olMatch) {
+      const liRegex = /<li[^>]*>([\s\S]*?)<\/li>/gi;
+      let liMatch;
+      while ((liMatch = liRegex.exec(olMatch[1])) !== null) {
+        terms.push(liMatch[1].trim());
+      }
+    }
+
+    return { companyName, companyAddress, companyGst, companyPhone, companyEmail, terms };
+  };
+
+  const handleEasyFieldChange = (field, value) => {
+    let currentHtml = editingTemplate.htmlContent;
+    let newHtml = currentHtml;
+
+    if (field === 'companyName') {
+      const regex = /(<h2[^>]*>)([\s\S]*?)(<\/h2>)/i;
+      if (regex.test(currentHtml)) {
+        newHtml = currentHtml.replace(regex, `$1${value}$3`);
+      }
+    } else if (field === 'companyAddress') {
+      const regex = /(<h2[^>]*>[\s\S]*?<\/h2>\s*<p[^>]*>)([\s\S]*?)(<\/p>)/i;
+      if (regex.test(currentHtml)) {
+        newHtml = currentHtml.replace(regex, `$1${value}$3`);
+      }
+    } else if (field === 'companyGst') {
+      const regex = /(GST\s*No:\s*)([^<&<\n]*)/i;
+      if (regex.test(currentHtml)) {
+        newHtml = currentHtml.replace(regex, `$1${value}`);
+      }
+    } else if (field === 'companyPhone') {
+      const regex = /(Tel:\s*)([^<&<\n]*)/i;
+      if (regex.test(currentHtml)) {
+        newHtml = currentHtml.replace(regex, `$1${value}`);
+      }
+    } else if (field === 'companyEmail') {
+      const regex = /(email:\s*)([^<&<\n]*)/i;
+      if (regex.test(currentHtml)) {
+        newHtml = currentHtml.replace(regex, `$1${value}`);
+      }
+    } else if (field === 'terms') {
+      // value is the array of terms
+      const olRegex = /(<ol[^>]*>)([\s\S]*?)(<\/ol>)/i;
+      if (olRegex.test(currentHtml)) {
+        const newLis = value.map(t => `      <li>${t}</li>`).join('\n');
+        newHtml = currentHtml.replace(olRegex, `$1\n${newLis}\n$3`);
+      }
+    }
+
+    handleHtmlChange(newHtml);
+  };
+
+  useEffect(() => {
+    if (editingTemplate) {
+      const fields = extractEasyFields(editingTemplate.htmlContent);
+      setEasyFields(fields);
+      // Auto-set editor mode based on templates
+      if (editingTemplate.id === 'tpl_computer_quotation' || editingTemplate.htmlContent.includes('WEBLINE TECHNOLOGIES')) {
+        setEditorMode('easy');
+      } else {
+        setEditorMode('advanced');
+      }
+    }
+  }, [editingTemplate ? editingTemplate.id : null]);
+
+  useEffect(() => {
+    if (editingTemplate && editorMode === 'advanced') {
+      const fields = extractEasyFields(editingTemplate.htmlContent);
+      setEasyFields(fields);
+    }
+  }, [editingTemplate?.htmlContent, editorMode]);
 
   const getLocalTemplates = () => {
     try {
@@ -291,19 +413,185 @@ export default function TemplateManager({ externalTemplateId, clearExternalTempl
                 />
               </div>
 
-              <div>
-                <div className="flex justify-between items-center mb-1.5">
-                  <label className="block text-sm font-semibold text-[var(--nm-text-primary)]">HTML Template Markup</label>
-                  <span className="text-xs text-[var(--nm-text-muted)] font-mono">HTML structure</span>
-                </div>
-                <textarea
-                  rows={15}
-                  placeholder="<h2>Heading</h2><p>Content with {{placeholder_name}}</p>"
-                  className="w-full glass-input font-mono text-xs leading-relaxed focus:border-[var(--nm-brand)]"
-                  value={editingTemplate.htmlContent}
-                  onChange={(e) => handleHtmlChange(e.target.value)}
-                />
+              {/* Editor Mode Selector */}
+              <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg w-max mb-4">
+                <button
+                  type="button"
+                  onClick={() => setEditorMode('easy')}
+                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    editorMode === 'easy'
+                      ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white'
+                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  }`}
+                >
+                  Easy Editor (No Code)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEditorMode('advanced')}
+                  className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+                    editorMode === 'advanced'
+                      ? 'bg-white dark:bg-slate-700 shadow-sm text-slate-800 dark:text-white'
+                      : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                  }`}
+                >
+                  Advanced HTML Editor
+                </button>
               </div>
+
+              {editorMode === 'easy' ? (
+                (easyFields.companyName || easyFields.companyAddress || easyFields.companyGst || easyFields.companyPhone || easyFields.companyEmail || easyFields.terms.length > 0) ? (
+                  <div className="space-y-4 border border-[var(--nm-border)] rounded p-5 bg-[var(--nm-card)]">
+                    <h3 className="text-sm font-bold text-[var(--nm-text-primary)] uppercase tracking-wider mb-2 border-b border-[var(--nm-border)] pb-2">Company Information</h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {easyFields.companyName !== undefined && (
+                        <div className="flex flex-col space-y-1">
+                          <label className="text-[10px] font-bold text-[var(--nm-text-muted)] uppercase">Company Subheader Name</label>
+                          <input
+                            type="text"
+                            value={easyFields.companyName}
+                            onChange={(e) => handleEasyFieldChange('companyName', e.target.value)}
+                            className="glass-input text-xs"
+                            placeholder="e.g. WEBLINE TECHNOLOGIES"
+                          />
+                        </div>
+                      )}
+                      
+                      {easyFields.companyGst !== undefined && (
+                        <div className="flex flex-col space-y-1">
+                          <label className="text-[10px] font-bold text-[var(--nm-text-muted)] uppercase">GST Number</label>
+                          <input
+                            type="text"
+                            value={easyFields.companyGst}
+                            onChange={(e) => handleEasyFieldChange('companyGst', e.target.value)}
+                            className="glass-input text-xs"
+                            placeholder="e.g. 07IHRPK7935Q1Z1"
+                          />
+                        </div>
+                      )}
+
+                      {easyFields.companyPhone !== undefined && (
+                        <div className="flex flex-col space-y-1">
+                          <label className="text-[10px] font-bold text-[var(--nm-text-muted)] uppercase">Phone / Tel</label>
+                          <input
+                            type="text"
+                            value={easyFields.companyPhone}
+                            onChange={(e) => handleEasyFieldChange('companyPhone', e.target.value)}
+                            className="glass-input text-xs"
+                            placeholder="e.g. 9310428496"
+                          />
+                        </div>
+                      )}
+
+                      {easyFields.companyEmail !== undefined && (
+                        <div className="flex flex-col space-y-1">
+                          <label className="text-[10px] font-bold text-[var(--nm-text-muted)] uppercase">Email Address</label>
+                          <input
+                            type="text"
+                            value={easyFields.companyEmail}
+                            onChange={(e) => handleEasyFieldChange('companyEmail', e.target.value)}
+                            className="glass-input text-xs"
+                            placeholder="e.g. tech@webline.com"
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {easyFields.companyAddress !== undefined && (
+                      <div className="flex flex-col space-y-1">
+                        <label className="text-[10px] font-bold text-[var(--nm-text-muted)] uppercase">Company Address</label>
+                        <textarea
+                          rows={2}
+                          value={easyFields.companyAddress}
+                          onChange={(e) => handleEasyFieldChange('companyAddress', e.target.value)}
+                          className="glass-input text-xs"
+                          placeholder="Enter complete company address"
+                        />
+                      </div>
+                    )}
+
+                    {easyFields.terms !== undefined && (
+                      <div className="space-y-3 pt-3 border-t border-[var(--nm-border)]">
+                        <div className="flex justify-between items-center">
+                          <label className="text-xs font-bold text-[var(--nm-text-primary)] uppercase tracking-wider">Terms & Conditions</label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedTerms = [...easyFields.terms, 'New Term'];
+                              handleEasyFieldChange('terms', updatedTerms);
+                            }}
+                            className="text-xs text-[var(--nm-brand)] font-bold hover:underline"
+                          >
+                            + Add Term
+                          </button>
+                        </div>
+                        
+                        <div className="space-y-2">
+                          {easyFields.terms.map((term, index) => (
+                            <div key={index} className="flex gap-2 items-center">
+                              <span className="text-xs font-bold text-[var(--nm-text-muted)] w-6">{index + 1}.</span>
+                              <input
+                                type="text"
+                                value={term}
+                                onChange={(e) => {
+                                  const updatedTerms = [...easyFields.terms];
+                                  updatedTerms[index] = e.target.value;
+                                  handleEasyFieldChange('terms', updatedTerms);
+                                }}
+                                className="flex-1 glass-input py-1 text-xs"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const updatedTerms = easyFields.terms.filter((_, idx) => idx !== index);
+                                  handleEasyFieldChange('terms', updatedTerms);
+                                }}
+                                className="text-slate-400 hover:text-red-500 p-1"
+                              >
+                                <Trash className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          ))}
+                          {easyFields.terms.length === 0 && (
+                            <p className="text-xs text-[var(--nm-text-muted)] italic">No terms defined. Click "+ Add Term" to create one.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-6 text-center border border-dashed border-[var(--nm-border)] rounded bg-[var(--nm-card)]">
+                    <p className="text-sm text-[var(--nm-text-muted)]">
+                      This template layout is not structured as a standard Quotation form.
+                    </p>
+                    <p className="text-xs text-[var(--nm-text-muted)] mt-1 mb-4">
+                      No matching company subheader, GST, contact info, or terms list was detected.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setEditorMode('advanced')}
+                      className="glass-btn-secondary py-1 px-3 text-xs"
+                    >
+                      Open Advanced HTML Editor
+                    </button>
+                  </div>
+                )
+              ) : (
+                <div>
+                  <div className="flex justify-between items-center mb-1.5">
+                    <label className="block text-sm font-semibold text-[var(--nm-text-primary)]">HTML Template Markup</label>
+                    <span className="text-xs text-[var(--nm-text-muted)] font-mono">HTML structure</span>
+                  </div>
+                  <textarea
+                    rows={15}
+                    placeholder="<h2>Heading</h2><p>Content with {{placeholder_name}}</p>"
+                    className="w-full glass-input font-mono text-xs leading-relaxed focus:border-[var(--nm-brand)]"
+                    value={editingTemplate.htmlContent}
+                    onChange={(e) => handleHtmlChange(e.target.value)}
+                  />
+                </div>
+              )}
             </div>
 
             {/* Template Settings & Placelolder Guide Side Panel */}
