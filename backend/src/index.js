@@ -258,7 +258,7 @@ async function overlayLetterhead(documentPdfBuffer, letterheadPathOrBuffer, lett
   }
   
   for (let i = 0; i < pages.length; i++) {
-    const [docPage] = await outPdf.copyPages(docPdf, [i]);
+    const docPage = pages[i];
     const { width, height } = docPage.getSize();
     
     let addedPage;
