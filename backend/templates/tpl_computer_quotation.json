@@ -1,0 +1,21 @@
+{
+  "id": "tpl_computer_quotation",
+  "name": "Computer Quotation",
+  "htmlContent": "<div style=\"border: 1px solid #000; padding: 0; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; max-width: 800px; margin: 0 auto; color: #000;\">\n  <!-- Top Banner -->\n  <div style=\"background-color: #419b88; color: #fff; text-align: center; font-size: 20px; font-weight: bold; padding: 10px 0; border-bottom: 1px solid #000;\">\n    Computer Quotation\n  </div>\n\n  <!-- Subheader -->\n  <div style=\"text-align: center; padding: 15px 10px; border-bottom: 1px solid #000; background-color: #fff;\">\n    <h2 style=\"margin: 0 0 5px 0; font-size: 22px; font-weight: bold; letter-spacing: 1px;\">WEBLINE TECHNOLOGIES</h2>\n    <p style=\"margin: 0 0 5px 0; font-size: 13px;\">F-72, Gali no-3, Mohan baba nagar, molarband extn, Badarpur border, Badarpur, Delhi-110044</p>\n    <p style=\"margin: 0; font-size: 13px; font-weight: bold;\">GST No: 07IHRPK7935Q1Z1</p>\n    <p style=\"margin: 5px 0 0 0; font-size: 13px;\">Tel: 9310428496 &nbsp; email: technologywebline@gmail.com</p>\n  </div>\n\n  <!-- Client Info Block -->\n  <div style=\"padding: 15px; border-bottom: 1px solid #000; line-height: 1.5; font-size: 14px;\">\n    <strong style=\"font-size: 15px;\">To:</strong><br/>\n    <strong style=\"font-size: 16px;\">{{client_name}}</strong><br/>\n    <span style=\"white-space: pre-line;\">{{client_address}}</span><br/>\n    <strong>Phone No:</strong> {{client_phone}}<br/>\n    <strong>Email ID:</strong> {{client_email}}<br/>\n    <strong>GSTIN No:</strong> {{client_gstin}}\n  </div>\n\n  <!-- Quotation Table Placeholder -->\n  <div style=\"padding: 0; margin: 0;\">\n    {{quotation_table}}\n  </div>\n\n  <!-- Footer Details and Signatures -->\n  <div style=\"display: flex; border-top: 1px solid #000; font-size: 13px;\">\n    <div style=\"width: 60%; padding: 10px; border-right: 1px solid #000;\">\n      <strong style=\"text-decoration: underline;\">Terms and Conditions:</strong>\n      <ol style=\"margin: 5px 0 0 0; padding-left: 20px; line-height: 1.6;\">\n        <li>Price is valid for 7days only</li>\n        <li>Good once sold will not be taken back</li>\n        <li>Subject to \"Delhi\" Jurisdiction only</li>\n      </ol>\n    </div>\n    <div style=\"width: 40%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; padding: 20px 10px; min-height: 100px;\">\n      <div style=\"margin-bottom: 35px;\">\n        {{company_stamp}}\n      </div>\n      <div style=\"font-weight: bold; border-top: 1px dashed #000; width: 80%; text-align: center; padding-top: 5px;\">\n        Seal & Signature\n      </div>\n    </div>\n  </div>\n</div>\n",
+  "placeholders": [
+    "client_name",
+    "client_address",
+    "client_phone",
+    "client_email",
+    "client_gstin"
+  ],
+  "hasSpecificationsTable": false,
+  "marginSettings": {
+    "top": "15mm",
+    "bottom": "15mm",
+    "left": "15mm",
+    "right": "15mm"
+  },
+  "useLetterhead": false,
+  "updatedAt": "2026-06-30T13:30:00.000Z"
+}

@@ -96,7 +96,12 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
       setFormValues(initialValues);
       
       // Initialize specifications table if supported
-      if (template.hasSpecificationsTable) {
+      const isQuotation = template.htmlContent && template.htmlContent.includes('{{quotation_table}}');
+      if (isQuotation) {
+        setSpecifications([
+          { description: '', hsnSac: '', unit: 'unit', quantity: '1', priceUnit: '', gst: '18' }
+        ]);
+      } else if (template.hasSpecificationsTable) {
         setSpecifications([
           { description: '', requiredSpec: '', offeredSpec: '' }
         ]);
@@ -132,10 +137,18 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
 
   // Spec table functions
   const handleAddSpecRow = () => {
-    setSpecifications(prev => [
-      ...prev,
-      { description: '', requiredSpec: '', offeredSpec: '' }
-    ]);
+    const isQuotation = selectedTemplate && selectedTemplate.htmlContent && selectedTemplate.htmlContent.includes('{{quotation_table}}');
+    if (isQuotation) {
+      setSpecifications(prev => [
+        ...prev,
+        { description: '', hsnSac: '', unit: 'unit', quantity: '1', priceUnit: '', gst: '18' }
+      ]);
+    } else {
+      setSpecifications(prev => [
+        ...prev,
+        { description: '', requiredSpec: '', offeredSpec: '' }
+      ]);
+    }
   };
 
   const handleRemoveSpecRow = (idx) => {
@@ -230,6 +243,8 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
       setError(`Failed to download ${format.toUpperCase()} file.`);
     }
   };
+
+  const isQuotation = selectedTemplate && selectedTemplate.htmlContent && selectedTemplate.htmlContent.includes('{{quotation_table}}');
 
   return (
     <div className="flex flex-col space-y-4 h-[calc(100vh-8rem)]">
@@ -428,6 +443,110 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
                                 className="w-full bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-650 rounded px-2 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-400 focus:outline-none focus:border-slate-500 resize-none"
                                 value={spec.offeredSpec}
                                 onChange={(e) => handleSpecChange(idx, 'offeredSpec', e.target.value)}
+                              />
+                            </td>
+                            <td className="p-2 text-center">
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSpecRow(idx)}
+                                disabled={specifications.length <= 1}
+                                className="text-slate-400 hover:text-red-500 disabled:opacity-30 p-1 cursor-pointer"
+                              >
+                                <Trash className="w-3.5 h-3.5" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* Quotation Table Section */}
+              {isQuotation && (
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <h3 className="text-xs font-bold text-slate-700 dark:text-slate-350 uppercase tracking-wider">
+                      Quotation Items
+                    </h3>
+                    <button 
+                      type="button" 
+                      onClick={handleAddSpecRow}
+                      className="text-xs text-slate-700 dark:text-slate-350 font-bold hover:underline cursor-pointer"
+                    >
+                      + Add Item
+                    </button>
+                  </div>
+
+                  <div className="border border-slate-400 dark:border-slate-700 rounded overflow-hidden">
+                    <table className="w-full text-left border-collapse">
+                      <thead>
+                        <tr className="bg-slate-100 dark:bg-slate-800 border-b border-slate-400 dark:border-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
+                          <th className="py-2.5 px-3 w-[40%]">Item Description</th>
+                          <th className="py-2.5 px-3 w-[15%]">HSN/SAC</th>
+                          <th className="py-2.5 px-3 w-[10%]">Unit</th>
+                          <th className="py-2.5 px-3 w-[10%]">Qty</th>
+                          <th className="py-2.5 px-3 w-[15%]">Price/Unit</th>
+                          <th className="py-2.5 px-3 w-[10%]">GST %</th>
+                          <th className="py-2.5 px-3 text-center w-10"></th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
+                        {specifications.map((item, idx) => (
+                          <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/40">
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                placeholder="e.g. Lenovo Laptop"
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-650 rounded px-2 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-400 focus:outline-none focus:border-slate-500"
+                                value={item.description || ''}
+                                onChange={(e) => handleSpecChange(idx, 'description', e.target.value)}
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                placeholder="8471"
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-650 rounded px-2 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-400 focus:outline-none focus:border-slate-500"
+                                value={item.hsnSac || ''}
+                                onChange={(e) => handleSpecChange(idx, 'hsnSac', e.target.value)}
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                placeholder="unit"
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-650 rounded px-2 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-400 focus:outline-none focus:border-slate-500"
+                                value={item.unit || 'unit'}
+                                onChange={(e) => handleSpecChange(idx, 'unit', e.target.value)}
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                placeholder="1"
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-650 rounded px-2 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-400 focus:outline-none focus:border-slate-500"
+                                value={item.quantity || ''}
+                                onChange={(e) => handleSpecChange(idx, 'quantity', e.target.value)}
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                placeholder="99860"
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-650 rounded px-2 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-400 focus:outline-none focus:border-slate-500"
+                                value={item.priceUnit || ''}
+                                onChange={(e) => handleSpecChange(idx, 'priceUnit', e.target.value)}
+                              />
+                            </td>
+                            <td className="p-2">
+                              <input
+                                type="number"
+                                placeholder="18"
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-650 rounded px-2 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-400 focus:outline-none focus:border-slate-500"
+                                value={item.gst || ''}
+                                onChange={(e) => handleSpecChange(idx, 'gst', e.target.value)}
                               />
                             </td>
                             <td className="p-2 text-center">

@@ -232,6 +232,26 @@ app.post('/api/products', (req, res) => {
 // Document Generation Engine
 // ----------------------------------------------------
 
+function convertNumberToWords(amount) {
+  const number = Math.round(amount);
+  if (number === 0) return 'ZERO RUPEES ONLY';
+
+  const units = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten',
+                 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+  const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+
+  function convertHelper(n) {
+    if (n < 20) return units[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 !== 0 ? ' ' + units[n % 10] : '');
+    if (n < 1000) return units[Math.floor(n / 100)] + ' Hundred' + (n % 100 !== 0 ? ' ' + convertHelper(n % 100) : '');
+    if (n < 100000) return convertHelper(Math.floor(n / 1000)) + ' Thousand' + (n % 1000 !== 0 ? ' ' + convertHelper(n % 1000) : '');
+    if (n < 10000000) return convertHelper(Math.floor(n / 100000)) + ' Lakh' + (n % 100000 !== 0 ? ' ' + convertHelper(n % 100000) : '');
+    return convertHelper(Math.floor(n / 10000000)) + ' Crore' + (n % 10000000 !== 0 ? ' ' + convertHelper(n % 10000000) : '');
+  }
+
+  return (convertHelper(number) + ' RUPEES ONLY').toUpperCase();
+}
+
 async function overlayLetterhead(documentPdfBuffer, letterheadPathOrBuffer, letterheadExtInput) {
   const docPdf = await PDFDocument.load(documentPdfBuffer);
   const letterheadBytes = Buffer.isBuffer(letterheadPathOrBuffer)
@@ -378,6 +398,87 @@ app.post('/api/generate', async (req, res) => {
       
       // Replace the specifications table tag
       html = html.replace(/\{\{\s*specifications_table\s*\}\}/g, tableHtml);
+    }
+    
+    // 2.5 Build and Replace Quotation Table
+    if (html.includes('{{quotation_table}}') && specifications && Array.isArray(specifications)) {
+      let subTotal = 0;
+      let tableRowsHtml = '';
+      
+      specifications.forEach((item, idx) => {
+        const qty = parseFloat(item.quantity) || 0;
+        const price = parseFloat(item.priceUnit) || 0;
+        const gstPercent = parseFloat(item.gst) || 0;
+        const itemSubtotal = qty * price;
+        const itemGst = itemSubtotal * (gstPercent / 100);
+        const itemAmount = itemSubtotal + itemGst;
+        
+        subTotal += itemAmount;
+        
+        const rowBg = idx % 2 === 0 ? '#ffffff' : '#f9fafb';
+        const formattedAmount = itemAmount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const formattedPrice = price.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        
+        tableRowsHtml += `
+          <tr style="background-color: ${rowBg};">
+            <td style="border: 1px solid #000; padding: 8px; text-align: center; vertical-align: top; width: 6%;">${idx + 1}</td>
+            <td style="border: 1px solid #000; padding: 8px; vertical-align: top; text-align: left; width: 44%;">${item.description || ''}</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: center; vertical-align: top; width: 10%;">${item.hsnSac || ''}</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: center; vertical-align: top; width: 8%;">${item.unit || 'unit'}</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: center; vertical-align: top; width: 8%;">${qty}</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: right; vertical-align: top; width: 10%;">${formattedPrice}</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: center; vertical-align: top; width: 8%;">${gstPercent}%</td>
+            <td style="border: 1px solid #000; padding: 8px; text-align: right; vertical-align: top; width: 12%; font-weight: bold;">₹ ${formattedAmount}</td>
+          </tr>
+        `;
+      });
+
+      const finalAmountVal = Math.round(subTotal);
+      const roundOffVal = finalAmountVal - subTotal;
+      const roundOffSign = roundOffVal >= 0 ? '+' : '-';
+      
+      const subTotalFormatted = `₹ ${subTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const finalAmountFormatted = `₹ ${finalAmountVal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+      const amountInWords = convertNumberToWords(finalAmountVal);
+      
+      let tableHtml = `
+        <table style="width: 100%; border-collapse: collapse; margin: 0; font-family: sans-serif; border: 1px solid #000; font-size: 13px;">
+          <thead>
+            <tr style="background-color: #419b88; color: #fff; text-align: center; border-bottom: 1px solid #000;">
+              <th style="border: 1px solid #000; padding: 8px; font-weight: bold; width: 6%;">Sl. No.</th>
+              <th style="border: 1px solid #000; padding: 8px; font-weight: bold; width: 44%;">Description</th>
+              <th style="border: 1px solid #000; padding: 8px; font-weight: bold; width: 10%;">HSN/SAC</th>
+              <th style="border: 1px solid #000; padding: 8px; font-weight: bold; width: 8%;">Unit</th>
+              <th style="border: 1px solid #000; padding: 8px; font-weight: bold; width: 8%;">Quantity</th>
+              <th style="border: 1px solid #000; padding: 8px; font-weight: bold; width: 10%;">Price /Unit</th>
+              <th style="border: 1px solid #000; padding: 8px; font-weight: bold; width: 8%;">GST (%)</th>
+              <th style="border: 1px solid #000; padding: 8px; font-weight: bold; width: 12%;">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRowsHtml}
+            <!-- Sub Total Row -->
+            <tr style="border-top: 1.5px solid #000;">
+              <td colspan="7" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold; background-color: #419b88; color: #fff;">Sub Total</td>
+              <td style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">${subTotalFormatted}</td>
+            </tr>
+            <!-- Amount in Words & Round off / Total -->
+            <tr>
+              <td colspan="5" rowspan="2" style="border: 1px solid #000; padding: 10px; vertical-align: top; text-align: left; font-weight: bold; line-height: 1.5;">
+                Amount In Words: <span style="font-weight: normal; text-transform: uppercase;">${amountInWords}</span>
+              </td>
+              <td colspan="2" style="border: 1px solid #000; padding: 8px; text-align: right; font-weight: bold;">Round off: ${roundOffSign}</td>
+              <td style="border: 1px solid #000; padding: 8px; text-align: right;">₹ ${Math.abs(roundOffVal).toFixed(2)}</td>
+            </tr>
+            <tr style="background-color: #419b88; color: #fff; font-weight: bold;">
+              <td colspan="2" style="border: 1px solid #000; padding: 8px; text-align: right;">Final Amount:</td>
+              <td style="border: 1px solid #000; padding: 8px; text-align: right;">${finalAmountFormatted}</td>
+            </tr>
+          </tbody>
+        </table>
+      `;
+
+      html = html.replace(/\{\{\s*quotation_table\s*\}\}/g, tableHtml);
     }
     
     // Find uploaded files for letterhead and stamp (fallback if memory buffers not provided)
