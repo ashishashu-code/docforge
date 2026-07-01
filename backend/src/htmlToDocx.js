@@ -33,6 +33,8 @@ function convertHtmlToDocx(html, options = {}) {
   let currentCellParagraphs = [];
   let inCell = false;
   let cellIsHeader = false;
+  let currentColSpan = 1;
+  let cellShading = undefined;
 
   let inList = false;
   let listLevel = 0;
@@ -138,7 +140,8 @@ function convertHtmlToDocx(html, options = {}) {
             // Design the table cell
             currentRowCells.push(new TableCell({
               children: currentCellParagraphs,
-              shading: cellIsHeader ? { fill: "F3F4F6" } : undefined, // Tailwind light gray
+              shading: cellShading ? { fill: cellShading } : undefined,
+              columnSpan: currentColSpan > 1 ? currentColSpan : undefined,
               margins: {
                 top: 140,
                 bottom: 140,
@@ -149,6 +152,8 @@ function convertHtmlToDocx(html, options = {}) {
             currentCellParagraphs = [];
             inCell = false;
             cellIsHeader = false;
+            currentColSpan = 1;
+            cellShading = undefined;
             break;
           case 'ul':
           case 'ol':
@@ -198,15 +203,25 @@ function convertHtmlToDocx(html, options = {}) {
             currentRowCells = [];
             break;
           case 'td':
-            inCell = true;
-            cellIsHeader = false;
-            currentCellParagraphs = [];
-            break;
           case 'th':
             inCell = true;
-            cellIsHeader = true;
+            cellIsHeader = (tagName === 'th');
+            if (cellIsHeader) styleStack.bold = true;
             currentCellParagraphs = [];
-            styleStack.bold = true; // Bold for table headers
+            
+            // Extract colspan attribute
+            currentColSpan = 1;
+            const colspanMatch = token.match(/colspan=["'](\d+)["']/i);
+            if (colspanMatch) {
+              currentColSpan = parseInt(colspanMatch[1], 10);
+            }
+            
+            // Extract shading color from style="background-color: #HEX"
+            cellShading = cellIsHeader ? "F3F4F6" : undefined;
+            const shadingMatch = token.match(/background-color:\s*#([a-fA-F0-9]{6})/i);
+            if (shadingMatch) {
+              cellShading = shadingMatch[1];
+            }
             break;
           case 'ul':
             inList = true;

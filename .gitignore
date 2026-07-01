@@ -7,5 +7,6 @@ backend/assets/letterheads/*
 backend/assets/stamps/*
 backend/templates/*
 !backend/templates/tpl_computer_quotation.json
+!backend/templates/tpl_Technical_compliance.json
 backend/products.json
 backend/.cache/

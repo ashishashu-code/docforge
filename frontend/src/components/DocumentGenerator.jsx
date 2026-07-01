@@ -9,6 +9,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
   const [products, setProducts] = useState([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [selectedLibraryProductId, setSelectedLibraryProductId] = useState('');
   
   // Form states
   const [formValues, setFormValues] = useState({});
@@ -45,6 +46,22 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
         serverProducts = res.data;
       } catch (err) {
         console.error("Failed to load products from server:", err);
+      }
+
+      // Clear old cached templates from localStorage to force update
+      try {
+        const local = localStorage.getItem('docforge_templates');
+        if (local) {
+          let localTemplates = JSON.parse(local);
+          const oldIds = ['tpl_computer_quotation', 'tpl_1782380109290', 'tpl_technical_compliance', 'tpl_Technical_compliance'];
+          const hasOldTemplates = localTemplates.some(t => oldIds.includes(t.id));
+          if (hasOldTemplates) {
+            localTemplates = localTemplates.filter(t => !oldIds.includes(t.id));
+            localStorage.setItem('docforge_templates', JSON.stringify(localTemplates));
+          }
+        }
+      } catch (e) {
+        console.error("Failed to clean up old local storage quotation template:", e);
       }
 
       // Load local templates
@@ -143,7 +160,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
         ]);
       } else if (template.hasSpecificationsTable) {
         setSpecifications([
-          { description: '', requiredSpec: '', offeredSpec: '' }
+          { productName: '', description: '', requiredSpec: '', offeredSpec: '' }
         ]);
       } else {
         setSpecifications([]);
@@ -171,8 +188,24 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
     if (!productId) return;
     const prod = products.find(p => p.id === productId);
     if (prod && prod.specifications) {
-      // Clone specifications
-      setSpecifications(JSON.parse(JSON.stringify(prod.specifications)));
+      // Map and clone specifications, adding productName
+      const newSpecs = prod.specifications.map(spec => ({
+        ...spec,
+        productName: prod.name
+      }));
+      
+      // If the current specifications only have a single empty default row, overwrite them.
+      // Otherwise, append.
+      const isDefaultEmpty = specifications.length === 1 && 
+        !specifications[0].description && 
+        !specifications[0].requiredSpec && 
+        !specifications[0].offeredSpec;
+      
+      if (isDefaultEmpty) {
+        setSpecifications(newSpecs);
+      } else {
+        setSpecifications(prev => [...prev, ...newSpecs]);
+      }
     }
   };
 
@@ -187,7 +220,7 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
     } else {
       setSpecifications(prev => [
         ...prev,
-        { description: '', requiredSpec: '', offeredSpec: '' }
+        { productName: '', description: '', requiredSpec: '', offeredSpec: '' }
       ]);
     }
   };
@@ -437,9 +470,12 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
                   <div className="flex items-center gap-2 pt-3 border-t border-slate-300 dark:border-slate-800">
                     <span className="text-xs text-slate-700 dark:text-slate-300 font-bold">Auto-fill:</span>
                     <select
-                      defaultValue=""
+                      value={selectedLibraryProductId}
                       className="bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-700 rounded px-3 py-1 text-xs text-slate-800 dark:text-slate-200 focus:outline-none focus:border-slate-500 cursor-pointer"
-                      onChange={(e) => handleProductSelect(e.target.value)}
+                      onChange={(e) => {
+                        handleProductSelect(e.target.value);
+                        setSelectedLibraryProductId('');
+                      }}
                     >
                       <option value="">-- Select Product Library --</option>
                       {products.map(p => (
@@ -470,15 +506,25 @@ export default function DocumentGenerator({ externalTemplateId, clearExternalTem
                     <table className="w-full text-left border-collapse">
                       <thead>
                         <tr className="bg-slate-100 dark:bg-slate-800 border-b border-slate-400 dark:border-slate-700 text-[10px] font-bold uppercase tracking-wider text-slate-800 dark:text-slate-200">
-                          <th className="py-2.5 px-3 w-1/3">Description Clause</th>
-                          <th className="py-2.5 px-3 w-1/3">Required Spec</th>
-                          <th className="py-2.5 px-3 w-1/3">Offered Spec</th>
+                          <th className="py-2.5 px-3 w-[20%]">Product / Item</th>
+                          <th className="py-2.5 px-3 w-[27%]">Description Clause</th>
+                          <th className="py-2.5 px-3 w-[26%]">Required Spec</th>
+                          <th className="py-2.5 px-3 w-[26%]">Offered Spec</th>
                           <th className="py-2.5 px-3 text-center w-10"></th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-200 dark:divide-slate-800 text-xs">
                         {specifications.map((spec, idx) => (
                           <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-850/40">
+                            <td className="p-2">
+                              <input
+                                type="text"
+                                placeholder="e.g. MacBook Pro"
+                                className="w-full bg-white dark:bg-slate-900 border border-slate-400 dark:border-slate-650 rounded px-2 py-1 text-xs text-slate-900 dark:text-slate-100 placeholder-slate-600 dark:placeholder-slate-400 focus:outline-none focus:border-slate-500"
+                                value={spec.productName || ''}
+                                onChange={(e) => handleSpecChange(idx, 'productName', e.target.value)}
+                              />
+                            </td>
                             <td className="p-2">
                               <input
                                 type="text"

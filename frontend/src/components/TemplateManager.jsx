@@ -163,6 +163,22 @@ export default function TemplateManager({ externalTemplateId, clearExternalTempl
       setTimeout(() => setStatus({ type: '', message: '' }), 4000);
     }
 
+    // Clear old cached templates from localStorage to force update
+    try {
+      const local = localStorage.getItem('docforge_templates');
+      if (local) {
+        let localTemplates = JSON.parse(local);
+        const oldIds = ['tpl_computer_quotation', 'tpl_1782380109290', 'tpl_technical_compliance', 'tpl_Technical_compliance'];
+        const hasOldTemplates = localTemplates.some(t => oldIds.includes(t.id));
+        if (hasOldTemplates) {
+          localTemplates = localTemplates.filter(t => !oldIds.includes(t.id));
+          localStorage.setItem('docforge_templates', JSON.stringify(localTemplates));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to clear cached template in template manager:", e);
+    }
+
     const localTemplates = getLocalTemplates();
     const merged = [...serverTemplates];
     localTemplates.forEach(localTpl => {
@@ -308,8 +324,8 @@ export default function TemplateManager({ externalTemplateId, clearExternalTempl
     setEditingTemplate({
       id: '',
       name: '',
-      htmlContent: `<h2>TECHNICAL COMPLIANCE SHEET</h2>\n<p>Bidder Name: {{company_name}}</p>\n<p>Bid Date: {{bid_date}}</p>\n<p>Bid Reference: {{bid_number}}</p>\n\n{{specifications_table}}\n\n<p>Sincerely,</p>\n<p><strong>{{authorized_signatory}}</strong></p>\n<p>{{company_stamp}}</p>`,
-      placeholders: ['company_name', 'bid_date', 'bid_number', 'authorized_signatory'],
+      htmlContent: `<h2 style="text-align: center; text-decoration: underline; margin-bottom: 25px; color: #000000; font-weight: bold;">\n  {{document_name}}\n</h2>\n\n<h3 style="margin-bottom: 15px; font-weight: bold; color: #000000;">\n  {{product_name}} Specifications\n</h3>\n\n{{specifications_table}}\n\n<div style="margin-top: 30px; font-size: 14px; line-height: 1.6; color: #1f2937;">\n  <p>We accept all the terms and conditions <strong>Bid Number:</strong> {{bid_number}}<strong>Dated:</strong> {{bid_date}}</p>\n  \n  <p style="margin-top: 30px;">Thanking You,</p>\n  \n  <div style="margin-top: 15px;">\n    {{company_stamp}}\n  </div>\n</div>`,
+      placeholders: ['document_name', 'product_name', 'bid_number', 'bid_date'],
       hasSpecificationsTable: true,
       marginSettings: { top: '20mm', bottom: '20mm', left: '20mm', right: '20mm' },
       useLetterhead: true,

@@ -382,8 +382,24 @@ app.post('/api/generate', async (req, res) => {
           <tbody>
       `;
       
+      let lastProduct = null;
+      let stripeIndex = 0;
       specifications.forEach((spec, idx) => {
-        const rowBg = idx % 2 === 0 ? '#ffffff' : '#f9fafb';
+        const currentProduct = (spec.productName || '').trim();
+        if (currentProduct && currentProduct !== lastProduct) {
+          // Render a product separator row
+          tableHtml += `
+            <tr style="background-color: #e5e7eb; font-weight: bold;">
+              <td colspan="3" style="border: 1px solid #d1d5db; padding: 8px 10px; text-align: left; color: #1f2937;">
+                Product / Item: ${currentProduct}
+              </td>
+            </tr>
+          `;
+          lastProduct = currentProduct;
+          stripeIndex = 0; // Reset striping count for new product section
+        }
+        
+        const rowBg = stripeIndex % 2 === 0 ? '#ffffff' : '#f9fafb';
         tableHtml += `
           <tr style="background-color: ${rowBg};">
             <td style="border: 1px solid #d1d5db; padding: 8px 10px; vertical-align: top;">${spec.description || ''}</td>
@@ -391,6 +407,7 @@ app.post('/api/generate', async (req, res) => {
             <td style="border: 1px solid #d1d5db; padding: 8px 10px; vertical-align: top;">${spec.offeredSpec || ''}</td>
           </tr>
         `;
+        stripeIndex++;
       });
       
       tableHtml += `
